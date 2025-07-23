@@ -32,53 +32,54 @@ const CreateUserModal = ({ show, onClose, onUserCreated }) => {
   };
 
   const handleCreateUser = async (e) => {
-    e.preventDefault();
-    setError("");
+  e.preventDefault();
+  setError("");
 
-    const role = roles.find((r) => r.name === selectedRole);
-    if (!role) {
-      setError("❌ Please select a valid role.");
-      return;
-    }
+  // 🔍 Only send role name (not permissions)
+  const role = roles.find((r) => r.name === selectedRole);
+  if (!role) {
+    setError("❌ Please select a valid role.");
+    return;
+  }
 
-    const payload = {
-      username,
-      password,
-      role: {
-        name: role.name,
-        permissions: role.permissions,
-      },
-    };
-
-    try {
-      const res = await axios.post(
-        "https://rbacapp-93834eb91813.herokuapp.com/users",
-        payload,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      alert("✅ User created successfully!");
-      setUsername("");
-      setPassword("");
-      setSelectedRole("");
-      onUserCreated(); // Refresh parent
-      onClose();
-    } catch (err) {
-      console.error("User creation failed:", err);
-      if (err?.response?.status === 409) {
-        setError("❌ Username already exists.");
-      } else if (err?.response?.status === 403) {
-        setError("❌ Insufficient permissions to create user.");
-      } else {
-        setError("❌ Failed to create user.");
-      }
+  const payload = {
+    username,
+    password,
+    role: {
+      name: role.name,
+      permissions: [] // 👈 Required: Send empty array
     }
   };
+
+  try {
+    const res = await axios.post(
+      "https://rbacapp-93834eb91813.herokuapp.com/users",
+      payload,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    alert("✅ User created successfully!");
+    setUsername("");
+    setPassword("");
+    setSelectedRole("");
+    onUserCreated(); // Refresh user list
+    onClose(); // Close modal
+  } catch (err) {
+    console.error("User creation failed:", err);
+    if (err?.response?.status === 409) {
+      setError("❌ Username already exists.");
+    } else if (err?.response?.status === 403) {
+      setError("❌ Insufficient permissions to create user.");
+    } else {
+      setError("❌ Failed to create user.");
+    }
+  }
+};
 
   if (!show) return null;
 
