@@ -26,8 +26,8 @@ const CreateUserModal = ({ show, onClose, onUserCreated }) => {
       );
       setRoles(res.data);
     } catch (err) {
-      console.error("Failed to fetch roles:", err);
-      setError("❌ Failed to load roles.");
+      console.error("You don't have the permission.", err);
+      setError("You don't have the permission to view");
     }
   };
 

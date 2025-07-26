@@ -58,7 +58,7 @@ const Users = () => {
       setError("");
     } catch (err) {
       console.error("Error fetching users:", err);
-      setError("❌ Failed to fetch users.");
+      setError("You Don't have the permission to view users.");
     } finally {
       setLoading(false);
     }
