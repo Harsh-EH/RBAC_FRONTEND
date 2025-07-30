@@ -134,7 +134,7 @@ const UpdateUserModal = ({ show, onClose }) => {
 
     try {
       const response = await axios.post(
-        "https://rbacapp-93834eb91813.herokuapp.com/auth/login",
+        "https://multiadminproj.onrender.com/auth/login",
         {
           username: newUsername,
           password: newPassword,

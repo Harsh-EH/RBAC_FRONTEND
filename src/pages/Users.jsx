@@ -49,7 +49,7 @@ const Users = () => {
     setLoading(true);
     try {
       const res = await axios.get(
-        "https://rbacapp-93834eb91813.herokuapp.com/users",
+        "https://multiadminproj.onrender.com/users",
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -67,7 +67,7 @@ const Users = () => {
   const fetchRoles = async () => {
     try {
       const res = await axios.get(
-        "https://rbacapp-93834eb91813.herokuapp.com/roles",
+        "https://multiadminproj.onrender.com/roles",
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -119,7 +119,7 @@ const Users = () => {
       console.log("✅ Payload being sent:", payload);
 
       await axios.put(
-        `https://rbacapp-93834eb91813.herokuapp.com/users/${username}`,
+        `https://multiadminproj.onrender.com/users/${username}`,
         payload,
         {
           headers: {
@@ -182,7 +182,7 @@ const Users = () => {
 
     try {
       await axios.delete(
-        `https://rbacapp-93834eb91813.herokuapp.com/users/${username}`,
+        `https://multiadminproj.onrender.com/users/${username}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,

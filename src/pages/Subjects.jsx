@@ -66,7 +66,7 @@ const Subjects = () => {
   const fetchSubjects = async () => {
     try {
       const res = await axios.get(
-        "https://rbacapp-93834eb91813.herokuapp.com/subjects",
+        "https://multiadminproj.onrender.com/subjects",
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -87,7 +87,7 @@ const Subjects = () => {
 
     try {
       await axios.post(
-        "https://rbacapp-93834eb91813.herokuapp.com/subjects",
+        "https://multiadminproj.onrender.com/subjects",
         {
           code,
           name,
@@ -123,7 +123,7 @@ const Subjects = () => {
 
     try {
       await axios.delete(
-        `https://rbacapp-93834eb91813.herokuapp.com/subjects/${codeToDelete}`,
+        `https://multiadminproj.onrender.com/subjects/${codeToDelete}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }

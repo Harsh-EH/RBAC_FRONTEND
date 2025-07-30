@@ -19,7 +19,7 @@ const CreateUserModal = ({ show, onClose, onUserCreated }) => {
   const fetchRoles = async () => {
     try {
       const res = await axios.get(
-        "https://rbacapp-93834eb91813.herokuapp.com/roles",
+        "https://multiadminproj.onrender.com/roles",
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -53,7 +53,7 @@ const CreateUserModal = ({ show, onClose, onUserCreated }) => {
 
   try {
     const res = await axios.post(
-      "https://rbacapp-93834eb91813.herokuapp.com/users",
+      "https://multiadminproj.onrender.com/users",
       payload,
       {
         headers: {
