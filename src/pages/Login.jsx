@@ -1,8 +1,11 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import useSessionManager from "../hooks/useSessionManager";
 
 const Login = () => {
+  useSessionManager(); // 🧠 Tracks nav and clears token if back nav
+
   const navigate = useNavigate();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -19,47 +22,25 @@ const Login = () => {
           username: username.trim(),
           password: password.trim(),
         },
-        {
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
+        { headers: { "Content-Type": "application/json" } }
       );
 
       const token = response.data?.token;
-
-      if (!token) {
-        throw new Error("❌ Token not received from server.");
-      }
+      if (!token) throw new Error("Token not received");
 
       localStorage.setItem("token", token);
-      navigate("/"); // ✅ Redirect after login
+      sessionStorage.setItem("lastRoute", "/"); // 👈 Store route to detect backward
+      navigate("/"); // 🧭 Add to history stack
     } catch (err) {
       console.error("Login failed:", err);
-
-      if (err.response) {
-        // Backend sent an error status
-        if (err.response.status === 403) {
-          setError("❌ Access Denied. Invalid credentials or insufficient permissions.");
-        } else if (err.response.status === 400) {
-          setError("❌ Bad Request. Ensure all fields are correct.");
-        } else {
-          setError(`❌ Server error (${err.response.status}): ${err.response.data?.message || "Unknown error"}`);
-        }
-      } else if (err.request) {
-        // No response from backend
-        setError("❌ No response from server. Possible CORS issue or server is down.");
-      } else {
-        // Something else failed before request was made
-        setError("❌ Login error: " + err.message);
-      }
+      setError("❌ Login failed. Check credentials.");
     }
   };
 
   return (
     <div className="d-flex align-items-center justify-content-center vh-100 bg-light">
       <div className="card shadow p-4" style={{ maxWidth: "400px", width: "100%" }}>
-        <h3 className="mb-3 text-center text-primary fw-bold">🔐 RBAC Login</h3>
+        <h3 className="text-center text-primary fw-bold mb-3">🔐 RBAC Login</h3>
 
         {error && <div className="alert alert-danger">{error}</div>}
 
@@ -73,7 +54,7 @@ const Login = () => {
               onChange={(e) => setUsername(e.target.value)}
               required
               autoFocus
-              placeholder="Enter your username"
+              placeholder="Enter username"
             />
           </div>
 
@@ -85,7 +66,7 @@ const Login = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              placeholder="Enter your password"
+              placeholder="Enter password"
             />
           </div>
 

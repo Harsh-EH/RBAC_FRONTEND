@@ -3,6 +3,7 @@ import axios from "axios";
 
 const CreateUserModal = ({ show, onClose, onUserCreated }) => {
   const [username, setUsername] = useState("");
+  const [email, setEmail] = useState(""); // ✅ New
   const [password, setPassword] = useState("");
   const [roles, setRoles] = useState([]);
   const [selectedRole, setSelectedRole] = useState("");
@@ -18,68 +19,62 @@ const CreateUserModal = ({ show, onClose, onUserCreated }) => {
 
   const fetchRoles = async () => {
     try {
-      const res = await axios.get(
-        "https://multiadminproj.onrender.com/roles",
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      const res = await axios.get("https://multiadminproj.onrender.com/roles", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       setRoles(res.data);
     } catch (err) {
-      console.error("You don't have the permission.", err);
-      setError("You don't have the permission to view");
+      console.error("Permission denied:", err);
+      setError("You don't have the permission to view roles.");
     }
   };
 
   const handleCreateUser = async (e) => {
-  e.preventDefault();
-  setError("");
+    e.preventDefault();
+    setError("");
 
-  // 🔍 Only send role name (not permissions)
-  const role = roles.find((r) => r.name === selectedRole);
-  if (!role) {
-    setError("❌ Please select a valid role.");
-    return;
-  }
-
-  const payload = {
-    username,
-    password,
-    role: {
-      name: role.name,
-      permissions: [] // 👈 Required: Send empty array
+    const role = roles.find((r) => r.name === selectedRole);
+    if (!role) {
+      setError("❌ Please select a valid role.");
+      return;
     }
-  };
 
-  try {
-    const res = await axios.post(
-      "https://multiadminproj.onrender.com/users",
-      payload,
-      {
+    const payload = {
+      username,
+      email, // ✅ Include email
+      password,
+      role: {
+        name: role.name,
+        permissions: [], // Permissions are required but left empty (backend controlled)
+      },
+    };
+
+    try {
+      await axios.post("https://multiadminproj.onrender.com/users", payload, {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-      }
-    );
+      });
 
-    alert("✅ User created successfully!");
-    setUsername("");
-    setPassword("");
-    setSelectedRole("");
-    onUserCreated(); // Refresh user list
-    onClose(); // Close modal
-  } catch (err) {
-    console.error("User creation failed:", err);
-    if (err?.response?.status === 409) {
-      setError("❌ Username already exists.");
-    } else if (err?.response?.status === 403) {
-      setError("❌ Insufficient permissions to create user.");
-    } else {
-      setError("❌ Failed to create user.");
+      alert("✅ User created successfully!");
+      setUsername("");
+      setEmail(""); // ✅ Clear email
+      setPassword("");
+      setSelectedRole("");
+      onUserCreated(); // Refresh list
+      onClose(); // Close modal
+    } catch (err) {
+      console.error("User creation failed:", err);
+      if (err?.response?.status === 409) {
+        setError("❌ Username already exists.");
+      } else if (err?.response?.status === 403) {
+        setError("❌ Insufficient permissions to create user.");
+      } else {
+        setError("❌ Failed to create user.");
+      }
     }
-  }
-};
+  };
 
   if (!show) return null;
 
@@ -110,6 +105,17 @@ const CreateUserModal = ({ show, onClose, onUserCreated }) => {
                   className="form-control"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="mb-3">
+                <label className="form-label">Email</label> {/* ✅ New Field */}
+                <input
+                  type="email"
+                  className="form-control"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   required
                 />
               </div>
@@ -175,6 +181,4 @@ const CreateUserModal = ({ show, onClose, onUserCreated }) => {
   );
 };
 
-// ✅ Final export name matches file name
 export default CreateUserModal;
-

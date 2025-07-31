@@ -10,16 +10,15 @@ import {
 } from "react-bootstrap";
 import axios from "axios";
 import CreateUserModal from "../components/CreateUserModal";
-import { jwtDecode } from "jwt-decode"; // Make sure to install this: npm install jwt-decode
+import { jwtDecode } from "jwt-decode";
 
+// Format grouped permissions for table display
 const formatGroupedPermissions = (permissions) => {
   const grouped = {};
 
   permissions.forEach((perm) => {
     const [module, action] = perm.split("_");
-    if (!grouped[module]) {
-      grouped[module] = new Set(); // Avoid duplicates
-    }
+    if (!grouped[module]) grouped[module] = new Set();
     grouped[module].add(action);
   });
 
@@ -31,14 +30,12 @@ const formatGroupedPermissions = (permissions) => {
     .join("\n");
 };
 
-// Optional: Capitalize module name
 const capitalize = (word) =>
   word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
 
 const Users = () => {
   const [users, setUsers] = useState([]);
   const [roles, setRoles] = useState([]);
-  const [updatedTimes, setUpdatedTimes] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showCreateUserModal, setShowCreateUserModal] = useState(false);
@@ -48,17 +45,14 @@ const Users = () => {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(
-        "https://multiadminproj.onrender.com/users",
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      const res = await axios.get("https://multiadminproj.onrender.com/users", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       setUsers(res.data);
       setError("");
     } catch (err) {
       console.error("Error fetching users:", err);
-      setError("You Don't have the permission to view users.");
+      setError("You don't have the permission to view users.");
     } finally {
       setLoading(false);
     }
@@ -66,12 +60,9 @@ const Users = () => {
 
   const fetchRoles = async () => {
     try {
-      const res = await axios.get(
-        "https://multiadminproj.onrender.com/roles",
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      const res = await axios.get("https://multiadminproj.onrender.com/roles", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       setRoles(res.data);
     } catch (err) {
       console.error("Error fetching roles:", err);
@@ -79,23 +70,14 @@ const Users = () => {
   };
 
   const handleRoleChange = async (username, newRoleName) => {
+    if (!token) {
+      alert("❌ No authentication token found. Please log in again.");
+      return;
+    }
+
     try {
-      const token = localStorage.getItem("token");
-
-      if (!token) {
-        alert("❌ No authentication token found. Please log in again.");
-        return;
-      }
-
-      let permissions = [];
-      try {
-        const decoded = jwtDecode(token);
-        permissions = decoded?.authorities || [];
-      } catch (decodeErr) {
-        console.error("Failed to decode token:", decodeErr);
-        alert("❌ Invalid token. Please log in again.");
-        return;
-      }
+      const decoded = jwtDecode(token);
+      const permissions = decoded?.authorities || [];
 
       if (!permissions.includes("ADMIN_UPDATE")) {
         alert("❌ You do not have permission (ADMIN_UPDATE) to update roles.");
@@ -115,9 +97,6 @@ const Users = () => {
         permissions: role.permissions,
       };
 
-      console.log("✅ Token being sent:", token);
-      console.log("✅ Payload being sent:", payload);
-
       await axios.put(
         `https://multiadminproj.onrender.com/users/${username}`,
         payload,
@@ -130,77 +109,52 @@ const Users = () => {
       );
 
       fetchUsers();
-      setUpdatedTimes((prev) => ({
-        ...prev,
-        [username]: new Date().toLocaleString(),
-      }));
-
-      alert(
-        `✅ Role for "${username}" successfully updated to "${newRoleName}".`
-      );
+      alert(`✅ Role for "${username}" updated to "${newRoleName}".`);
     } catch (err) {
       console.error("Role update failed:", err);
-
       if (err?.response?.status === 403) {
-        alert("❌ Server rejected the request: insufficient privileges.");
-      } else if (err?.response?.status === 400) {
-        alert("❌ Server rejected the request: invalid role data.");
+        alert("❌ Insufficient privileges.");
       } else {
-        alert("❌ Role update failed due to a network or server error.");
+        alert("❌ Role update failed.");
       }
     }
   };
 
   const handleDeleteUser = async (username) => {
-    const token = localStorage.getItem("token");
-
     if (!token) {
       alert("❌ No authentication token found. Please log in again.");
       return;
     }
 
-    let permissions = [];
     try {
       const decoded = jwtDecode(token);
-      permissions = decoded?.authorities || [];
-    } catch (decodeErr) {
-      console.error("Token decode failed:", decodeErr);
-      alert("❌ Invalid token. Please log in again.");
-      return;
-    }
+      const permissions = decoded?.authorities || [];
 
-    if (!permissions.includes("ADMIN_DELETE")) {
-      alert("❌ You do not have permission (ADMIN_DELETE) to delete users.");
-      return;
-    }
+      if (!permissions.includes("ADMIN_DELETE")) {
+        alert("❌ You do not have permission (ADMIN_DELETE) to delete users.");
+        return;
+      }
 
-    const confirmDelete = window.confirm(
-      `Are you sure you want to delete user "${username}"? This action cannot be undone.`
-    );
+      const confirmDelete = window.confirm(
+        `Are you sure you want to delete user "${username}"? This action cannot be undone.`
+      );
+      if (!confirmDelete) return;
 
-    if (!confirmDelete) return;
-
-    try {
       await axios.delete(
         `https://multiadminproj.onrender.com/users/${username}`,
         {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         }
       );
 
       alert(`✅ User "${username}" deleted successfully.`);
-      fetchUsers(); // Refresh users list
+      fetchUsers();
     } catch (err) {
       console.error("User deletion failed:", err);
-
       if (err?.response?.status === 403) {
-        alert("❌ Server rejected the request: insufficient privileges.");
-      } else if (err?.response?.status === 404) {
-        alert("❌ User not found. It may have already been deleted.");
+        alert("❌ Insufficient privileges.");
       } else {
-        alert("❌ User deletion failed due to a server or network error.");
+        alert("❌ User deletion failed.");
       }
     }
   };
@@ -235,6 +189,7 @@ const Users = () => {
               <thead className="table-light">
                 <tr>
                   <th>Username</th>
+                  <th>Email</th>
                   <th>Role</th>
                   <th>Permissions</th>
                   <th>Updated At</th>
@@ -244,7 +199,7 @@ const Users = () => {
               <tbody>
                 {users.length === 0 ? (
                   <tr>
-                    <td colSpan="5" className="text-muted">
+                    <td colSpan="6" className="text-muted">
                       No users found.
                     </td>
                   </tr>
@@ -252,7 +207,7 @@ const Users = () => {
                   users.map((user, index) => (
                     <tr key={index}>
                       <td>{user.username}</td>
-
+                      <td>{user.email || "N/A"}</td>
                       <td>
                         <Form.Select
                           size="sm"
@@ -268,14 +223,17 @@ const Users = () => {
                           ))}
                         </Form.Select>
                       </td>
-
                       <td style={{ whiteSpace: "pre-line" }}>
                         {user.role?.permissions
                           ? formatGroupedPermissions(user.role.permissions)
                           : "None"}
                       </td>
+                      <td>
+                        {user.createdAt
+                          ? new Date(user.createdAt).toLocaleString()
+                          : "N/A"}
+                      </td>
 
-                      <td>{updatedTimes[user.username] || "N/A"}</td>
                       <td>
                         <Button
                           variant="danger"
