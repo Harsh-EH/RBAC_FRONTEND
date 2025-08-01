@@ -1,17 +1,40 @@
 import React, { useEffect, useState } from "react";
-import { Container, Card, Button, Table, Modal, Form } from "react-bootstrap";
+import {
+  Container,
+  Card,
+  Button,
+  Table,
+  Modal,
+  Form,
+} from "react-bootstrap";
 import axios from "axios";
 import { jwtDecode } from "jwt-decode";
+import UpdateStudentModal from "../components/UpdateStudentModal";
 
 const Students = () => {
   const [students, setStudents] = useState([]);
   const [showModal, setShowModal] = useState(false);
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState(null);
   const [rollNo, setRollNo] = useState("");
   const [name, setName] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [permissions, setPermissions] = useState([]);
 
   const token = localStorage.getItem("token");
+
+  useEffect(() => {
+    if (token) {
+      try {
+        const decoded = jwtDecode(token);
+        const perms = decoded?.authorities || [];
+        setPermissions(perms);
+      } catch (err) {
+        console.error("Failed to decode token:", err);
+      }
+    }
+  }, [token]);
 
   const fetchStudents = async () => {
     try {
@@ -20,7 +43,6 @@ const Students = () => {
       });
       setStudents(res.data);
     } catch (err) {
-      console.error("Failed to fetch students", err);
       if (err?.response?.status === 403) {
         setError("❌ Access Denied (STUDENT_READ)");
         setTimeout(() => setError(""), 3000);
@@ -54,7 +76,6 @@ const Students = () => {
       setName("");
       fetchStudents();
     } catch (err) {
-      console.error("Create student failed:", err);
       if (err?.response?.status === 403) setError("❌ Access Denied (STUDENT_CREATE)");
       else if (err?.response?.status === 409) setError("❌ Roll number already exists.");
       else setError("❌ Failed to create student.");
@@ -78,7 +99,6 @@ const Students = () => {
       setTimeout(() => setMessage(""), 3000);
       fetchStudents();
     } catch (err) {
-      console.error("Delete failed:", err);
       if (err?.response?.status === 403) setError("❌ Access Denied (STUDENT_DELETE)");
       else if (err?.response?.status === 404) setError("❌ Student not found.");
       else setError("❌ Failed to delete student.");
@@ -86,59 +106,85 @@ const Students = () => {
     }
   };
 
+  const handleEditStudent = (student) => {
+    setSelectedStudent(student);
+    setShowUpdateModal(true);
+  };
+
+  const can = (action) => permissions.includes(`STUDENT_${action}`);
+
   useEffect(() => {
-    fetchStudents();
-  }, []);
+    if (can("READ")) fetchStudents();
+  }, [permissions]);
 
   return (
     <Container fluid className="pt-4 px-4">
       <Card className="shadow-sm rounded-4 p-4">
         <div className="d-flex justify-content-between align-items-center mb-3">
           <h4 className="fw-bold">Student Management</h4>
-          <Button variant="primary" size="sm" onClick={() => setShowModal(true)}>
-            ➕ Add Student
-          </Button>
+          {can("CREATE") && (
+            <Button variant="primary" size="sm" onClick={() => setShowModal(true)}>
+              ➕ Add Student
+            </Button>
+          )}
         </div>
 
         {message && <div className="alert alert-success">{message}</div>}
         {error && <div className="alert alert-danger">{error}</div>}
 
-        <div className="table-responsive">
-          <Table hover bordered className="align-middle text-center mb-0">
-            <thead className="table-light">
-              <tr>
-                <th>Roll No.</th>
-                <th>Student Name</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {students.length > 0 ? (
-                students.map((student) => (
-                  <tr key={student.rollNo}>
-                    <td>{student.rollNo}</td>
-                    <td>{student.name}</td>
-                    <td>
-                      <Button
-                        variant="danger"
-                        size="sm"
-                        onClick={() => handleDeleteStudent(student.rollNo)}
-                      >
-                        🗑️ Delete
-                      </Button>
+        {can("READ") ? (
+          <div className="table-responsive">
+            <Table hover bordered className="align-middle text-center mb-0">
+              <thead className="table-light">
+                <tr>
+                  <th>Roll No.</th>
+                  <th>Student Name</th>
+                  {(can("UPDATE") || can("DELETE")) && <th style={{ width: 180 }}>Actions</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {students.length > 0 ? (
+                  students.map((student) => (
+                    <tr key={student.rollNo}>
+                      <td>{student.rollNo}</td>
+                      <td>{student.name}</td>
+                      {(can("UPDATE") || can("DELETE")) && (
+                        <td className="d-flex justify-content-center gap-2">
+                          {can("UPDATE") && (
+                            <Button
+                              variant="warning"
+                              size="sm"
+                              onClick={() => handleEditStudent(student)}
+                            >
+                              ✏️ Edit
+                            </Button>
+                          )}
+                          {can("DELETE") && (
+                            <Button
+                              variant="danger"
+                              size="sm"
+                              onClick={() => handleDeleteStudent(student.rollNo)}
+                            >
+                              🗑️ Delete
+                            </Button>
+                          )}
+                        </td>
+                      )}
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={can("DELETE") || can("UPDATE") ? "3" : "2"} className="text-muted">
+                      No student records found.
                     </td>
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="3" className="text-muted">
-                    No student records found.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </Table>
-        </div>
+                )}
+              </tbody>
+            </Table>
+          </div>
+        ) : (
+          <div className="text-muted text-center">🔒 No access to view student data.</div>
+        )}
       </Card>
 
       {/* Add Student Modal */}
@@ -176,6 +222,16 @@ const Students = () => {
           </Button>
         </Modal.Footer>
       </Modal>
+
+      {/* Update Modal */}
+      {can("UPDATE") && selectedStudent && (
+        <UpdateStudentModal
+          show={showUpdateModal}
+          onClose={() => setShowUpdateModal(false)}
+          student={selectedStudent}
+          onStudentUpdated={fetchStudents}
+        />
+      )}
     </Container>
   );
 };

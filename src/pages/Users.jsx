@@ -12,26 +12,21 @@ import axios from "axios";
 import CreateUserModal from "../components/CreateUserModal";
 import { jwtDecode } from "jwt-decode";
 
-// Format grouped permissions for table display
+// Group permissions like: "ADMIN: READ, CREATE", "ROLE: DELETE, UPDATE"
 const formatGroupedPermissions = (permissions) => {
   const grouped = {};
-
   permissions.forEach((perm) => {
     const [module, action] = perm.split("_");
     if (!grouped[module]) grouped[module] = new Set();
     grouped[module].add(action);
   });
-
   return Object.entries(grouped)
     .map(
       ([module, actions]) =>
-        `${capitalize(module)}: ${Array.from(actions).join(", ")}`
+        `${module.charAt(0).toUpperCase() + module.slice(1).toLowerCase()}: ${Array.from(actions).join(", ")}`
     )
     .join("\n");
 };
-
-const capitalize = (word) =>
-  word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
 
 const Users = () => {
   const [users, setUsers] = useState([]);
@@ -39,8 +34,25 @@ const Users = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showCreateUserModal, setShowCreateUserModal] = useState(false);
+  const [permissions, setPermissions] = useState([]);
 
   const token = localStorage.getItem("token");
+
+  // Decode permissions from JWT
+  useEffect(() => {
+    if (token) {
+      try {
+        const decoded = jwtDecode(token);
+        const perms = decoded?.authorities || [];
+        setPermissions(perms);
+        console.log("✅ ADMIN PERMISSIONS:", perms);
+      } catch (err) {
+        console.error("❌ Failed to decode token", err);
+      }
+    }
+  }, [token]);
+
+  const hasPermission = (perm) => permissions.includes(perm);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -52,7 +64,7 @@ const Users = () => {
       setError("");
     } catch (err) {
       console.error("Error fetching users:", err);
-      setError("You don't have the permission to view users.");
+      setError("❌ You don't have the permission to view users.");
     } finally {
       setLoading(false);
     }
@@ -70,20 +82,7 @@ const Users = () => {
   };
 
   const handleRoleChange = async (username, newRoleName) => {
-    if (!token) {
-      alert("❌ No authentication token found. Please log in again.");
-      return;
-    }
-
     try {
-      const decoded = jwtDecode(token);
-      const permissions = decoded?.authorities || [];
-
-      if (!permissions.includes("ADMIN_UPDATE")) {
-        alert("❌ You do not have permission (ADMIN_UPDATE) to update roles.");
-        return;
-      }
-
       const user = users.find((u) => u.username === username);
       const role = roles.find((r) => r.name === newRoleName);
 
@@ -121,20 +120,7 @@ const Users = () => {
   };
 
   const handleDeleteUser = async (username) => {
-    if (!token) {
-      alert("❌ No authentication token found. Please log in again.");
-      return;
-    }
-
     try {
-      const decoded = jwtDecode(token);
-      const permissions = decoded?.authorities || [];
-
-      if (!permissions.includes("ADMIN_DELETE")) {
-        alert("❌ You do not have permission (ADMIN_DELETE) to delete users.");
-        return;
-      }
-
       const confirmDelete = window.confirm(
         `Are you sure you want to delete user "${username}"? This action cannot be undone.`
       );
@@ -169,12 +155,14 @@ const Users = () => {
       <Card className="shadow-sm rounded-4 p-4">
         <div className="d-flex justify-content-between align-items-center mb-3">
           <h4 className="fw-bold">User Management</h4>
-          <button
-            className="btn btn-primary"
-            onClick={() => setShowCreateUserModal(true)}
-          >
-            ➕ Add User
-          </button>
+          {hasPermission("ADMIN_CREATE") && (
+            <button
+              className="btn btn-primary"
+              onClick={() => setShowCreateUserModal(true)}
+            >
+              ➕ Add User
+            </button>
+          )}
         </div>
 
         {loading ? (
@@ -190,16 +178,15 @@ const Users = () => {
                 <tr>
                   <th>Username</th>
                   <th>Email</th>
-                  <th>Role</th>
+                  {hasPermission("ADMIN_UPDATE") && <th>Role</th>}
                   <th>Permissions</th>
-                  <th>Updated At</th>
-                  <th>Actions</th>
+                  {hasPermission("ADMIN_DELETE") && <th>Actions</th>}
                 </tr>
               </thead>
               <tbody>
                 {users.length === 0 ? (
                   <tr>
-                    <td colSpan="6" className="text-muted">
+                    <td colSpan="5" className="text-muted">
                       No users found.
                     </td>
                   </tr>
@@ -208,41 +195,39 @@ const Users = () => {
                     <tr key={index}>
                       <td>{user.username}</td>
                       <td>{user.email || "N/A"}</td>
-                      <td>
-                        <Form.Select
-                          size="sm"
-                          value={user.role?.name || ""}
-                          onChange={(e) =>
-                            handleRoleChange(user.username, e.target.value)
-                          }
-                        >
-                          {roles.map((role, idx) => (
-                            <option key={idx} value={role.name}>
-                              {role.name}
-                            </option>
-                          ))}
-                        </Form.Select>
-                      </td>
+                      {hasPermission("ADMIN_UPDATE") && (
+                        <td>
+                          <Form.Select
+                            size="sm"
+                            value={user.role?.name || ""}
+                            onChange={(e) =>
+                              handleRoleChange(user.username, e.target.value)
+                            }
+                          >
+                            {roles.map((role, idx) => (
+                              <option key={idx} value={role.name}>
+                                {role.name}
+                              </option>
+                            ))}
+                          </Form.Select>
+                        </td>
+                      )}
                       <td style={{ whiteSpace: "pre-line" }}>
                         {user.role?.permissions
                           ? formatGroupedPermissions(user.role.permissions)
                           : "None"}
                       </td>
-                      <td>
-                        {user.createdAt
-                          ? new Date(user.createdAt).toLocaleString()
-                          : "N/A"}
-                      </td>
-
-                      <td>
-                        <Button
-                          variant="danger"
-                          size="sm"
-                          onClick={() => handleDeleteUser(user.username)}
-                        >
-                          🗑️ Delete
-                        </Button>
-                      </td>
+                      {hasPermission("ADMIN_DELETE") && (
+                        <td>
+                          <Button
+                            variant="danger"
+                            size="sm"
+                            onClick={() => handleDeleteUser(user.username)}
+                          >
+                            🗑️ Delete
+                          </Button>
+                        </td>
+                      )}
                     </tr>
                   ))
                 )}
@@ -252,6 +237,7 @@ const Users = () => {
         )}
       </Card>
 
+      {/* Modal */}
       <CreateUserModal
         show={showCreateUserModal}
         onClose={() => setShowCreateUserModal(false)}
@@ -262,3 +248,4 @@ const Users = () => {
 };
 
 export default Users;
+

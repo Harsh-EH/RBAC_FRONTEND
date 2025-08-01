@@ -9,6 +9,7 @@ import {
   Alert,
 } from "react-bootstrap";
 import axios from "axios";
+import { jwtDecode } from "jwt-decode";
 
 const Subjects = () => {
   const [subjects, setSubjects] = useState([]);
@@ -17,8 +18,24 @@ const Subjects = () => {
   const [name, setName] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [permissions, setPermissions] = useState([]);
 
   const token = localStorage.getItem("token");
+
+  useEffect(() => {
+    if (token) {
+      try {
+        const decoded = jwtDecode(token);
+        const perms = decoded?.authorities || [];
+        setPermissions(perms);
+        console.log("✅ SUBJECT PERMISSIONS:", perms);
+      } catch (err) {
+        console.error("❌ Failed to decode token:", err);
+      }
+    }
+  }, [token]);
+
+  const can = (action) => permissions.includes(`SUBJECT_${action}`);
 
   const fetchSubjects = async () => {
     try {
@@ -45,10 +62,7 @@ const Subjects = () => {
     try {
       await axios.post(
         "https://multiadminproj.onrender.com/subjects",
-        {
-          code,
-          name,
-        },
+        { code, name },
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -99,10 +113,9 @@ const Subjects = () => {
   };
 
   useEffect(() => {
-    fetchSubjects();
-  }, []);
+    if (can("READ")) fetchSubjects();
+  }, [permissions]);
 
-  // Clear messages after 3 seconds
   useEffect(() => {
     if (message || error) {
       const timer = setTimeout(() => {
@@ -118,50 +131,60 @@ const Subjects = () => {
       <Card className="shadow-sm rounded-4 p-4">
         <div className="d-flex justify-content-between align-items-center mb-3">
           <h4 className="fw-bold">Subject Management</h4>
-          <Button variant="primary" size="sm" onClick={() => setShowModal(true)}>
-            ➕ Add Subject
-          </Button>
+          {can("CREATE") && (
+            <Button variant="primary" size="sm" onClick={() => setShowModal(true)}>
+              ➕ Add Subject
+            </Button>
+          )}
         </div>
 
         {message && <Alert variant="success">{message}</Alert>}
         {error && <Alert variant="danger">{error}</Alert>}
 
-        <div className="table-responsive">
-          <Table hover bordered className="align-middle text-center mb-0">
-            <thead className="table-light">
-              <tr>
-                <th>Subject Code</th>
-                <th>Subject Name</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {subjects.length > 0 ? (
-                subjects.map((subject) => (
-                  <tr key={subject.code}>
-                    <td>{subject.code}</td>
-                    <td>{subject.name}</td>
-                    <td>
-                      <Button
-                        variant="danger"
-                        size="sm"
-                        onClick={() => handleDeleteSubject(subject.code)}
-                      >
-                        🗑️ Delete
-                      </Button>
+        {can("READ") ? (
+          <div className="table-responsive">
+            <Table hover bordered className="align-middle text-center mb-0">
+              <thead className="table-light">
+                <tr>
+                  <th>Subject Code</th>
+                  <th>Subject Name</th>
+                  {can("DELETE") && <th>Actions</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {subjects.length > 0 ? (
+                  subjects.map((subject) => (
+                    <tr key={subject.code}>
+                      <td>{subject.code}</td>
+                      <td>{subject.name}</td>
+                      {can("DELETE") && (
+                        <td>
+                          <Button
+                            variant="danger"
+                            size="sm"
+                            onClick={() => handleDeleteSubject(subject.code)}
+                          >
+                            🗑️ Delete
+                          </Button>
+                        </td>
+                      )}
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={can("DELETE") ? "3" : "2"} className="text-muted">
+                      No subjects available yet.
                     </td>
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="3" className="text-muted">
-                    No subjects available yet.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </Table>
-        </div>
+                )}
+              </tbody>
+            </Table>
+          </div>
+        ) : (
+          <div className="text-center text-muted">
+            🔒 You do not have permission to view subjects.
+          </div>
+        )}
       </Card>
 
       {/* Add Subject Modal */}

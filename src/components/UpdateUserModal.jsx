@@ -1,97 +1,94 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { Modal, Form, Button } from "react-bootstrap";
 import axios from "axios";
-import { jwtDecode } from "jwt-decode";
 
-const UpdateUserModal = ({ show, onClose }) => {
-  const token = localStorage.getItem("token");
-  const decoded = jwtDecode(token);
-  const currentUsername = decoded?.sub;
-
-  // ✅ Hooks must be at the top level, outside conditions
-  const [newUsername, setNewUsername] = useState(currentUsername || "");
+const UpdateStudentModal = ({ show, onClose, student, onStudentUpdated }) => {
+  const [username, setUsername] = useState("");
   const [newPassword, setNewPassword] = useState("");
-  const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
-  // ✅ Must come after hooks
-  if (!show) return null;
+  const token = localStorage.getItem("token");
 
-  const handleUpdate = async () => {
-    setMessage("");
-    setError("");
+  useEffect(() => {
+    if (student) {
+      setUsername(student.username || student.rollNo || "");
+    }
+  }, [student]);
+
+  const handleUpdatePassword = async () => {
+    if (!username.trim() || !newPassword.trim()) {
+      setError("❌ Username and new password are required.");
+      setTimeout(() => setError(""), 3000);
+      return;
+    }
 
     try {
-      const response = await axios.post(
-        "https://multiadminproj.onrender.com/auth/login",
+      await axios.post(
+        `https://multiadminproj.onrender.com/auth/login`,
         {
-          username: newUsername,
-          password: newPassword,
+          username: String(username),
+          password: String(newPassword)
         },
         {
           headers: {
-            "Content-Type": "application/json",
-          },
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json"
+          }
         }
       );
 
-      const newToken = response.data.token;
-      setMessage("✅ Updated successfully! Please login again.");
-      localStorage.removeItem("token");
-
+      setSuccess("✅ Password updated successfully.");
       setTimeout(() => {
-        window.location.href = "/login";
+        setSuccess("");
+        onClose();
+        onStudentUpdated();
       }, 2000);
     } catch (err) {
-      console.error("Update failed:", err);
-      setError("❌ Failed to update. You may not have permission.");
+      console.error("Password update failed:", err);
+      setError("❌ Failed to update password.");
+      setTimeout(() => setError(""), 3000);
     }
   };
 
   return (
-    <div className="modal d-block" tabIndex="-1" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
-      <div className="modal-dialog">
-        <div className="modal-content shadow">
-          <div className="modal-header bg-primary text-white">
-            <h5 className="modal-title">Update Username or Password</h5>
-            <button type="button" className="btn-close btn-close-white" onClick={onClose}></button>
-          </div>
+    <Modal show={show} onHide={onClose} centered>
+      <Modal.Header closeButton>
+        <Modal.Title>Update User Password</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        <Form.Group className="mb-3">
+          <Form.Label>Username</Form.Label>
+          <Form.Control
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="e.g., harsh123"
+          />
+        </Form.Group>
 
-          <div className="modal-body">
-            {message && <div className="alert alert-success">{message}</div>}
-            {error && <div className="alert alert-danger">{error}</div>}
+        <Form.Group className="mb-3">
+          <Form.Label>New Password</Form.Label>
+          <Form.Control
+            type="password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            placeholder="Enter new password"
+          />
+        </Form.Group>
 
-            <div className="mb-3">
-              <label className="form-label">New Username</label>
-              <input
-                className="form-control"
-                value={newUsername}
-                onChange={(e) => setNewUsername(e.target.value)}
-              />
-            </div>
-
-            <div className="mb-3">
-              <label className="form-label">New Password</label>
-              <input
-                type="password"
-                className="form-control"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="modal-footer">
-            <button className="btn btn-secondary" onClick={onClose}>
-              Cancel
-            </button>
-            <button className="btn btn-success" onClick={handleUpdate}>
-              Update
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+        {error && <div className="text-danger mt-2">{error}</div>}
+        {success && <div className="text-success mt-2">{success}</div>}
+      </Modal.Body>
+      <Modal.Footer>
+        <Button variant="secondary" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button variant="success" onClick={handleUpdatePassword}>
+          Save Changes
+        </Button>
+      </Modal.Footer>
+    </Modal>
   );
 };
 
-export default UpdateUserModal;
+export default UpdateStudentModal;
