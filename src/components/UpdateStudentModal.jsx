@@ -4,7 +4,9 @@ import axios from "axios";
 
 const UpdateStudentModal = ({ show, onClose, student, onStudentUpdated }) => {
   const [rollNo, setRollNo] = useState("");
+  const [originalRollNo, setOriginalRollNo] = useState("");
   const [name, setName] = useState("");
+  const [attendance, setAttendance] = useState("");
   const [error, setError] = useState("");
 
   const token = localStorage.getItem("token");
@@ -12,34 +14,58 @@ const UpdateStudentModal = ({ show, onClose, student, onStudentUpdated }) => {
   useEffect(() => {
     if (student) {
       setRollNo(student.rollNo);
-      setName(student.name);
+      setOriginalRollNo(student.rollNo); // Store original roll no
+      setName(student.name || "");
+      setAttendance(student.attendance || ""); // optional
     }
   }, [student]);
 
   const handleUpdate = async () => {
     if (!rollNo.trim() || !name.trim()) {
-      setError("❌ Both roll number and name are required.");
+      setError("❌ Roll number and name are required.");
       setTimeout(() => setError(""), 3000);
       return;
     }
 
+    const data = {
+      rollNo,
+      name,
+      attendance,
+    };
+
+    const headers = {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    };
+
     try {
-      await axios.put(
-        `https://multiadminproj.onrender.com/students`,
-        { rollNo, name },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json"
-          }
-        }
-      );
-      onClose();
-      onStudentUpdated();
+      if (rollNo === originalRollNo) {
+        // ✅ Update student details only
+        await axios.put(
+          `https://multiadminproj.onrender.com/students/${originalRollNo}`,
+          { name, attendance },
+          { headers }
+        );
+      } else {
+        // ✅ Roll number changed → use change-rollno endpoint
+        await axios.put(
+          `https://multiadminproj.onrender.com/students/${originalRollNo}/change-rollno`,
+          data,
+          { headers }
+        );
+      }
+
+      onStudentUpdated(); // Refresh data
+      onClose(); // Close modal
     } catch (err) {
       console.error("Update failed:", err);
-      if (err?.response?.status === 403) setError("❌ Access Denied (STUDENT_UPDATE)");
-      else setError("❌ Failed to update student.");
+      if (err?.response?.status === 403) {
+        setError("❌ Access Denied (STUDENT_UPDATE)");
+      } else if (err?.response?.status === 409) {
+        setError("❌ Roll number already exists.");
+      } else {
+        setError("❌ Failed to update student.");
+      }
       setTimeout(() => setError(""), 3000);
     }
   };
@@ -63,7 +89,15 @@ const UpdateStudentModal = ({ show, onClose, student, onStudentUpdated }) => {
           <Form.Control
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="e.g., John Doe"
+            placeholder="e.g., Mohit Sharma"
+          />
+        </Form.Group>
+        <Form.Group className="mb-3">
+          <Form.Label>Attendance</Form.Label>
+          <Form.Control
+            value={attendance}
+            onChange={(e) => setAttendance(e.target.value)}
+            placeholder="e.g., 23"
           />
         </Form.Group>
         {error && <div className="text-danger mt-2">{error}</div>}

@@ -10,10 +10,14 @@ import {
 } from "react-bootstrap";
 import axios from "axios";
 import { jwtDecode } from "jwt-decode";
+// ... your existing imports
+import UpdateSubjectModal from "../components/UpdateSubjectModal";
 
 const Subjects = () => {
   const [subjects, setSubjects] = useState([]);
   const [showModal, setShowModal] = useState(false);
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [selectedSubject, setSelectedSubject] = useState(null);
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
   const [message, setMessage] = useState("");
@@ -112,6 +116,11 @@ const Subjects = () => {
     }
   };
 
+  const handleEditSubject = (subject) => {
+    setSelectedSubject(subject);
+    setShowUpdateModal(true);
+  };
+
   useEffect(() => {
     if (can("READ")) fetchSubjects();
   }, [permissions]);
@@ -125,6 +134,8 @@ const Subjects = () => {
       return () => clearTimeout(timer);
     }
   }, [message, error]);
+
+  const hasActionColumn = can("DELETE") || can("UPDATE");
 
   return (
     <Container fluid className="pt-4 px-4">
@@ -148,7 +159,7 @@ const Subjects = () => {
                 <tr>
                   <th>Subject Code</th>
                   <th>Subject Name</th>
-                  {can("DELETE") && <th>Actions</th>}
+                  {hasActionColumn && <th>Actions</th>}
                 </tr>
               </thead>
               <tbody>
@@ -157,22 +168,34 @@ const Subjects = () => {
                     <tr key={subject.code}>
                       <td>{subject.code}</td>
                       <td>{subject.name}</td>
-                      {can("DELETE") && (
+                      {hasActionColumn && (
                         <td>
-                          <Button
-                            variant="danger"
-                            size="sm"
-                            onClick={() => handleDeleteSubject(subject.code)}
-                          >
-                            🗑️ Delete
-                          </Button>
+                          {can("UPDATE") && (
+                            <Button
+                              variant="outline-primary"
+                              size="sm"
+                              className="me-2"
+                              onClick={() => handleEditSubject(subject)}
+                            >
+                              ✏️ Edit
+                            </Button>
+                          )}
+                          {can("DELETE") && (
+                            <Button
+                              variant="outline-danger"
+                              size="sm"
+                              onClick={() => handleDeleteSubject(subject.code)}
+                            >
+                              🗑️ Delete
+                            </Button>
+                          )}
                         </td>
                       )}
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={can("DELETE") ? "3" : "2"} className="text-muted">
+                    <td colSpan={hasActionColumn ? "3" : "2"} className="text-muted">
                       No subjects available yet.
                     </td>
                   </tr>
@@ -222,6 +245,16 @@ const Subjects = () => {
           </Button>
         </Modal.Footer>
       </Modal>
+
+      {/* Update Subject Modal */}
+      {showUpdateModal && selectedSubject && (
+        <UpdateSubjectModal
+          show={showUpdateModal}
+          onClose={() => setShowUpdateModal(false)}
+          subject={selectedSubject}
+          onUpdated={fetchSubjects}
+        />
+      )}
     </Container>
   );
 };
