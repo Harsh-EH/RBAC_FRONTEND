@@ -10,7 +10,7 @@ const Dashboard = () => {
 
     // 👇 Detect browser back (popstate)
     const handlePopState = () => {
-      console.log("[INFO] Back navigation detected from dashboard → logging out");
+      // console.log("[INFO] Back navigation detected from dashboard → logging out");
 
       // Delete token and force logout
       localStorage.removeItem("token");
